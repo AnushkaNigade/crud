@@ -1,0 +1,404 @@
+//Structure of Application
+
+node-app/
+|-public/
+| |-index.html
+| |-styles.css
+| |-app.js
+| |
+|-models/
+| |-todo.js
+| |
+|-routes/
+| |-todoRoutes.js
+| |
+|-server.js
+|
+
+
+
+mkdir node-app   (folder name)
+
+
+
+
+cd node-app   (folder name)
+
+
+
+
+npm init -y    //install package-json
+
+
+
+npm install express mongodb mongoose   //install packages
+
+
+
+
+mkdir public                  //create folder
+
+
+
+mkdir models
+
+
+
+mkdir routes
+
+
+
+make file server.js 
+
+make file in models folder "todo.js"
+
+make file in public folder "index.html"
+make file in public folder "styles.css"
+make file in public folder "app.js"
+
+
+make file in routes folder "todoRoutes.js"
+
+
+
+
+
+
+
+//paste this code in todo.js
+
+// models/todo.js
+const mongoose = require('mongoose');
+
+const todoSchema = new mongoose.Schema({
+  title: {
+    type: String,
+    required: true
+  },
+  description: String,
+  completed: {
+    type: Boolean,
+    default: false
+  }
+});
+
+module.exports = mongoose.model('Todo', todoSchema);
+
+
+
+
+
+
+
+
+
+//paste this code into todoRoute
+// routes/todoRoutes.js
+const express = require('express');
+const router = express.Router();
+const Todo = require('../models/todo');
+
+// GET all todos
+router.get('/', async (req, res) => {
+  try {
+    const todos = await Todo.find();
+    res.json(todos);
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+// GET a todo by ID
+router.get('/:id', getTodo, (req, res) => {
+  res.json(res.todo);
+});
+
+// CREATE a new todo
+router.post('/', async (req, res) => {
+  const todo = new Todo({
+    title: req.body.title,
+    description: req.body.description
+  });
+  try {
+    const newTodo = await todo.save();
+    res.status(201).json(newTodo);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// UPDATE a todo
+router.patch('/:id', getTodo, async (req, res) => {
+  if (req.body.title != null) {
+    res.todo.title = req.body.title;
+  }
+  if (req.body.description != null) {
+    res.todo.description = req.body.description;
+  }
+  try {
+    const updatedTodo = await res.todo.save();
+    res.json(updatedTodo);
+  } catch (err) {
+    res.status(400).json({ message: err.message });
+  }
+});
+
+// DELETE a todo
+router.delete('/:id', getTodo, async (req, res) => {
+  try {
+    await res.todo.remove();
+    res.json({ message: 'Deleted Todo' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+});
+
+async function getTodo(req, res, next) {
+  let todo;
+  try {
+    todo = await Todo.findById(req.params.id);
+    if (todo == null) {
+      return res.status(404).json({ message: 'Todo not found' });
+    }
+  } catch (err) {
+    return res.status(500).json({ message: err.message });
+  }
+
+  res.todo = todo;
+  next();
+}
+
+module.exports = router;
+
+
+
+
+
+
+
+
+
+
+//paste into server.js
+
+// server.js
+const express = require('express');
+const mongoose = require('mongoose');
+const todoRoutes = require('./routes/todoRoutes');
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+
+app.use(express.json());
+
+// Connect to MongoDB
+mongoose.connect('mongodb://localhost:27017/tododb', { useNewUrlParser: true, useUnifiedTopology: true });
+const db = mongoose.connection;
+db.on('error', (error) => console.error(error));
+db.once('open', () => console.log('Connected to Database'));
+
+// Routes
+app.use('/todos', todoRoutes);
+
+// Serve static files
+app.use(express.static('public'));
+
+app.listen(PORT, () => {
+  console.log(Server is running on http://localhost:${PORT});
+});
+
+
+
+
+
+
+
+//paste into index.html
+
+<!-- public/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Todo List</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <h1>Todo List</h1>
+
+  <form id="todo-form">
+    <input type="text" id="title" placeholder="Todo Title" required>
+    <input type="text" id="description" placeholder="Description">
+    <button type="submit">Add Todo</button>
+  </form>
+
+  <ul id="todo-list"></ul>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
+
+
+
+
+//paste into styles.css
+
+/* public/styles.css */
+body {
+  font-family: Arial, sans-serif;
+}
+
+h1 {
+  text-align: center;
+}
+
+form {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+}
+
+input[type="text"] {
+  padding: 5px;
+  margin-right: 10px;
+}
+
+button {
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+ul {
+  list-style-type: none;
+  padding: 0;
+}
+
+li {
+  margin-bottom: 10px;
+}
+
+.todo-item {
+  display: flex;
+  align-items: center;
+}
+
+.todo-item button {
+  margin-left: 10px;
+}
+
+
+
+
+
+
+
+
+//paste into app.js
+
+// public/app.js
+document.addEventListener('DOMContentLoaded', () => {
+  const form = document.getElementById('todo-form');              //fetch html document using their ID's
+  const titleInput = document.getElementById('title');
+  const descriptionInput = document.getElementById('description');            
+  const todoList = document.getElementById('todo-list');
+
+  form.addEventListener('submit', async (e) => {        
+    e.preventDefault();              //allowing us to handle form submission manually
+    
+    const title = titleInput.value;
+    const description = descriptionInput.value;
+
+//sends POST request to the /todos of our backend server using fetch API
+    try {
+      const response = await fetch('/todos', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ title, description })
+      });
+      if (!response.ok) {
+        throw new Error('Failed to add todo');
+      }
+      const todo = await response.json();
+      addTodoToList(todo);
+      titleInput.value = '';
+      descriptionInput.value = '';
+    } catch (err) {
+      console.error(err.message);
+    }
+  });
+
+  // Fetch todos from server on page load
+  fetchTodos();
+
+  async function fetchTodos() {
+    try {
+      const response = await fetch('/todos');
+      if (!response.ok) {
+        throw new Error('Failed to fetch todos');
+      }
+      const todos = await response.json();
+      todos.forEach(todo => addTodoToList(todo));
+    } catch (err) {
+      console.error(err.message);
+    }
+  }
+
+  function addTodoToList(todo) {
+    const li = document.createElement('li');
+    li.innerHTML = `
+      <div class="todo-item">
+        <div>
+          <h3>${todo.title}</h3>
+          <p>${todo.description || 'No description'}</p>
+        </div>
+        <button class="delete-btn" data-id="${todo._id}">Delete</button>
+      </div>
+    `;
+    todoList.appendChild(li);
+  }
+
+  // Event listener for delete buttons
+  todoList.addEventListener('click', async (e) => {
+    if (e.target.classList.contains('delete-btn')) {
+      const todoId = e.target.getAttribute('data-id');
+      try {
+        const response = await fetch(/todos/${todoId}, {
+          method: 'DELETE'
+        });
+        if (!response.ok) {
+          throw new Error('Failed to delete todo');
+        }
+        // Remove the todo item from the DOM
+        e.target.closest('li').remove();
+      } catch (err) {
+        console.error(err.message);
+      }
+    }
+  });
+});
+
+
+
+
+
+
+
+run    node server.js
+
+after successful running
+
+go to mongodb website login there
+and make new deployment 
+
+enter any username and password
+
+then click on database-> connect ->copy path of mongodb connection with username and password and databasename
+
+and paste into server.js file at mongodb connect 
+
+then open mongodb compass on windows-> new connection -> choose advanced connection option
+paste the same link and connect 
